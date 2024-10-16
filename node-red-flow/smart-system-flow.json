@@ -1,0 +1,863 @@
+[
+    {
+        "id": "5ba6e47c9bd804f2",
+        "type": "mqtt in",
+        "z": "b88976213c883107",
+        "name": "",
+        "topic": "v3/thesis2024@ttn/devices/eui-a8610a31304e7b13/up",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "3fb9031e500f6219",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 220,
+        "y": 1160,
+        "wires": [
+            [
+                "eb2be7bfca88c284"
+            ]
+        ]
+    },
+    {
+        "id": "eb2be7bfca88c284",
+        "type": "json",
+        "z": "b88976213c883107",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 790,
+        "y": 1160,
+        "wires": [
+            [
+                "6a9a858e5a279bdd",
+                "ff139560e67722a0"
+            ]
+        ]
+    },
+    {
+        "id": "a7015f08690c0b25",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 27",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 960,
+        "y": 1240,
+        "wires": []
+    },
+    {
+        "id": "2ac0928fe634bd18",
+        "type": "comment",
+        "z": "b88976213c883107",
+        "name": "Get data from TTN to Influx",
+        "info": "",
+        "x": 130,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "52729afdcf61d451",
+        "type": "join",
+        "z": "b88976213c883107",
+        "name": "",
+        "mode": "custom",
+        "build": "object",
+        "property": "payload",
+        "propertyType": "msg",
+        "key": "topic",
+        "joiner": "\\n",
+        "joinerType": "str",
+        "accumulate": false,
+        "timeout": "",
+        "count": "3",
+        "reduceRight": false,
+        "reduceExp": "",
+        "reduceInit": "",
+        "reduceInitType": "",
+        "reduceFixup": "",
+        "x": 1590,
+        "y": 1160,
+        "wires": [
+            [
+                "732f42c8b80d033e",
+                "9a09859c3cd5827a"
+            ]
+        ]
+    },
+    {
+        "id": "732f42c8b80d033e",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 28",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1740,
+        "y": 1220,
+        "wires": []
+    },
+    {
+        "id": "08a2ea5d2a6a40ea",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_light_intensity",
+        "func": "\nvar payload = JSON.parse(msg.payload);\nvar currentlightIntensity = payload.uplink_message.decoded_payload.lightIntensity;\n\n//node.warn(\"Light Intensity: \" + currentlightIntensity);\n//node.warn(typeof currentlightIntensity);\n/*msg.payload = {\n    light_intensity: currentlightIntensity\n    //timestamp: new Date(msg.payload.received_at).getTime()\n    \n};*/\n\nmsg.topic = \"room_brightness\";\nmsg.payload = currentlightIntensity;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1360,
+        "y": 1160,
+        "wires": [
+            [
+                "52729afdcf61d451"
+            ]
+        ]
+    },
+    {
+        "id": "45e38bf988bf15ae",
+        "type": "influxdb out",
+        "z": "b88976213c883107",
+        "influxdb": "a11ff95e90f4c38c",
+        "name": "Send Light Intensity and Power Consumption Data",
+        "measurement": "light_and_power_data_2",
+        "precision": "ms",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "organisation",
+        "bucket": "bucket",
+        "x": 2550,
+        "y": 1300,
+        "wires": []
+    },
+    {
+        "id": "12654d4c73aef7ac",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 29",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2020,
+        "y": 1160,
+        "wires": []
+    },
+    {
+        "id": "9a09859c3cd5827a",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_light_intensity",
+        "func": "var currentlightIntensity = msg.payload.room_brightness;\nvar currentlampIntensity = msg.payload.lamp_brightness;\nvar currentSunlightIntensity = msg.payload.sunlight_brightness;\n\nnode.warn(\"Light Intensity: \" + currentlightIntensity);\n//node.warn(typeof currentlightIntensity);\nnode.warn(\"Current Lamp Brightness: \" + currentlampIntensity);\n\nconst optimalLightIntensity = 60;\nconst offset = 2;\nconst optimalSunlightIntensity = 260;\nconst lampMaxIntensityIncrease = 22;\n\nlet newLampPercentage;\nlet lampAction = '';\n\nif (currentlightIntensity < (optimalLightIntensity - offset)) {\n    node.warn(\"Increasing lamp brightness to max\");\n    newLampPercentage = 100;\n    lampAction = 'set_brightness';\n}else if (currentlightIntensity >= optimalLightIntensity + lampMaxIntensityIncrease) {\n    newLampPercentage = 1;\n    if (currentlampIntensity == 1) {\n        lampAction = 'keep_off';\n        node.warn(\"1.Sunlight sufficient. Lamp already off. No action needed\");\n    } else {\n        node.warn(\"Sunlight sufficient. Turning off lamp\");\n        lampAction = 'turn_off';\n    }  \n} else if (currentlightIntensity > (optimalLightIntensity + offset)) {\n    \n    lampAction = 'set_brightness';\n    if (currentlampIntensity == 1) {\n        newLampPercentage = 1;\n        lampAction = 'no_action';\n        node.warn(\"2.Sunlight sufficient. Lamp already off. No action needed\");\n    } else {\n        newLampPercentage = 100;\n        node.warn(\"Lamp already on. No action needed\");\n        lampAction = 'no_action';\n    }\n} else {\n    if (currentlampIntensity == 1) {\n        newLampPercentage = 1;\n        lampAction = 'keep_off';\n        node.warn(\"3.Sunlight sufficient. Lamp already off. No action needed\");\n    } else {\n        newLampPercentage = 100;\n        node.warn(\"Lamp already on. No action needed\");\n        lampAction = 'no_action';\n    }  \n}\n\nnewLampPercentage = Math.min(Math.max(newLampPercentage, 0), 100);\nnode.warn(\"New Lamp Brightness: \" + newLampPercentage);\n\nmsg.payload = {\n    light_intensity: currentlightIntensity,\n    lamp_new_percentage_intensity: newLampPercentage,\n    lamp_action: lampAction\n    //timestamp: new Date(msg.payload.received_at).getTime()\n};\n\nmsg.topic = \"light_intensity\";\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1800,
+        "y": 1160,
+        "wires": [
+            [
+                "12654d4c73aef7ac",
+                "cd44a5e0e4a0686f",
+                "10ee8dd802e5e676"
+            ]
+        ]
+    },
+    {
+        "id": "cd44a5e0e4a0686f",
+        "type": "switch",
+        "z": "b88976213c883107",
+        "name": "Check lamp action",
+        "property": "payload.lamp_action",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "keep_off",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "turn_off",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "set_brightness",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 2050,
+        "y": 1040,
+        "wires": [
+            [
+                "10e4fe1b72c890bb"
+            ],
+            [
+                "521435f7ba6c7e01"
+            ],
+            [
+                "076ef91c5a9c45b6"
+            ]
+        ]
+    },
+    {
+        "id": "b1d884ca8e392773",
+        "type": "comment",
+        "z": "b88976213c883107",
+        "name": "Check lamp state (set_brightness or turn_off)",
+        "info": "",
+        "x": 2070,
+        "y": 940,
+        "wires": []
+    },
+    {
+        "id": "98be5be0b16bcbee",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_sunlight_intensity",
+        "func": "\nvar payload = JSON.parse(msg.payload);\nvar currentsunlightIntensity = payload.uplink_message.decoded_payload.sunlightIntensity;\n\n//node.warn(\"Light Intensity: \" + currentlightIntensity);\n//node.warn(typeof currentlightIntensity);\n/*msg.payload = {\n    light_intensity: currentlightIntensity\n    //timestamp: new Date(msg.payload.received_at).getTime()\n    \n};*/\n\nmsg.topic = \"sunlight_brightness\";\nmsg.payload = currentsunlightIntensity;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1370,
+        "y": 1240,
+        "wires": [
+            [
+                "52729afdcf61d451"
+            ]
+        ]
+    },
+    {
+        "id": "6a9a858e5a279bdd",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "Time Check",
+        "func": "var now = new Date();\nvar currentHour = now.getHours();\n\nif (currentHour >= 6 && currentHour < 21) {\n    return msg;\n} else {\n    return null;\n}",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 950,
+        "y": 1160,
+        "wires": [
+            [
+                "a7015f08690c0b25",
+                "08a2ea5d2a6a40ea",
+                "98be5be0b16bcbee",
+                "6a417e2fb1bb0430",
+                "5d365d16350407f4"
+            ]
+        ]
+    },
+    {
+        "id": "9cf152328b375539",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 30",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 3180,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "1fd5da6864ebf3f6",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "Set Brightness",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "brightness",
+        "version": 3,
+        "x": 2840,
+        "y": 1120,
+        "wires": [
+            [
+                "9cf152328b375539"
+            ]
+        ]
+    },
+    {
+        "id": "076ef91c5a9c45b6",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_lamp_brightness_new_intensity",
+        "func": "msg.payload = msg.payload.lamp_new_percentage_intensity;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2440,
+        "y": 1120,
+        "wires": [
+            [
+                "1fd5da6864ebf3f6",
+                "c5e02a7b17694238"
+            ]
+        ]
+    },
+    {
+        "id": "c5462db0a49979ec",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "1% Brightness",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "brightness",
+        "version": 3,
+        "x": 2640,
+        "y": 1000,
+        "wires": [
+            [
+                "b3d41712a569fa2c"
+            ]
+        ]
+    },
+    {
+        "id": "521435f7ba6c7e01",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "set brightness to 1%",
+        "func": "msg.payload = 1;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2380,
+        "y": 1040,
+        "wires": [
+            [
+                "c5462db0a49979ec",
+                "2d06e6ca93a4d426"
+            ]
+        ]
+    },
+    {
+        "id": "0168377f8fe0bd83",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 31",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 3020,
+        "y": 1040,
+        "wires": []
+    },
+    {
+        "id": "b3d41712a569fa2c",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "Turn OFF",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "off",
+        "version": 3,
+        "x": 2840,
+        "y": 1000,
+        "wires": [
+            [
+                "0168377f8fe0bd83"
+            ]
+        ]
+    },
+    {
+        "id": "10e4fe1b72c890bb",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "Turn OFF",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "off",
+        "version": 3,
+        "x": 2340,
+        "y": 960,
+        "wires": [
+            [
+                "97984e96f77d8f1f"
+            ]
+        ]
+    },
+    {
+        "id": "97984e96f77d8f1f",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 32",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2540,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "0c2bb01ad9ce0456",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 33",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1400,
+        "y": 1540,
+        "wires": []
+    },
+    {
+        "id": "d347ff732fef96a1",
+        "type": "comment",
+        "z": "b88976213c883107",
+        "name": "Get power consumption from HA to influx",
+        "info": "",
+        "x": 1260,
+        "y": 1380,
+        "wires": []
+    },
+    {
+        "id": "7498a83e7283f1c4",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_sonoff_power_consumption",
+        "func": "var powerConsumption = parseFloat(msg.payload);\n\nnode.warn(\"Power Consumption: \" + powerConsumption);\n//node.warn(\"\\n\");\n//node.warn(typeof powerConsumption);\n\nmsg.payload = {\n    power_consumption: powerConsumption\n    //timestamp: new Date(msg.payload.received_at).getTime()\n\n};\n\nmsg.topic = \"power_consumption\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1740,
+        "y": 1440,
+        "wires": [
+            [
+                "6eb30403f91ea60b",
+                "10ee8dd802e5e676"
+            ]
+        ]
+    },
+    {
+        "id": "6eb30403f91ea60b",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 34",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2000,
+        "y": 1440,
+        "wires": []
+    },
+    {
+        "id": "6a417e2fb1bb0430",
+        "type": "api-current-state",
+        "z": "b88976213c883107",
+        "name": "HA power consumption",
+        "server": "818290d3608da0ae",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.sonoff_10020b1d60_power_1",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            },
+            {
+                "property": "data",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 1210,
+        "y": 1440,
+        "wires": [
+            [
+                "0c2bb01ad9ce0456",
+                "7498a83e7283f1c4"
+            ]
+        ]
+    },
+    {
+        "id": "10ee8dd802e5e676",
+        "type": "join",
+        "z": "b88976213c883107",
+        "name": "",
+        "mode": "custom",
+        "build": "object",
+        "property": "payload",
+        "propertyType": "msg",
+        "key": "topic",
+        "joiner": "\\n",
+        "joinerType": "str",
+        "accumulate": false,
+        "timeout": "",
+        "count": "2",
+        "reduceRight": false,
+        "reduceExp": "",
+        "reduceInit": "",
+        "reduceInitType": "",
+        "reduceFixup": "",
+        "x": 2010,
+        "y": 1300,
+        "wires": [
+            [
+                "d8178aa4a046cc91",
+                "09d14c21de087849"
+            ]
+        ]
+    },
+    {
+        "id": "d8178aa4a046cc91",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "Format data to InfluxDB",
+        "func": "let combinedPayload = msg.payload;\nlet lightIntensity = parseFloat(combinedPayload.light_intensity.light_intensity);\nlet lamp_new_percentage_intensity = parseFloat(combinedPayload.light_intensity.lamp_new_percentage_intensity);\nlet lamp_action = String(combinedPayload.light_intensity.lamp_action);\nlet power_consumption = parseFloat(combinedPayload.power_consumption.power_consumption);\n\nmsg.payload = {\n    light_intensity: lightIntensity,\n    lamp_new_percentage_intensity: lamp_new_percentage_intensity,\n    lamp_action: lamp_action,\n    power_consumption: power_consumption\n    //timestamp: new Date(msg.payload.received_at).getTime()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2210,
+        "y": 1300,
+        "wires": [
+            [
+                "45e38bf988bf15ae"
+            ]
+        ]
+    },
+    {
+        "id": "09d14c21de087849",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 35",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2160,
+        "y": 1380,
+        "wires": []
+    },
+    {
+        "id": "c5e02a7b17694238",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "Set Brightness",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "brightness",
+        "version": 3,
+        "x": 2840,
+        "y": 1180,
+        "wires": [
+            [
+                "9cf152328b375539"
+            ]
+        ]
+    },
+    {
+        "id": "5d365d16350407f4",
+        "type": "influxdb in",
+        "z": "b88976213c883107",
+        "influxdb": "a11ff95e90f4c38c",
+        "name": "Get current lamp percentage intensity",
+        "query": "SELECT LAST(\"lamp_new_percentage_intensity\") FROM light_and_power_data_2",
+        "rawOutput": false,
+        "precision": "",
+        "retentionPolicy": "",
+        "org": "organisation",
+        "x": 1070,
+        "y": 1060,
+        "wires": [
+            [
+                "8a76295d060fc875",
+                "4f8b482f0ba96445"
+            ]
+        ]
+    },
+    {
+        "id": "d4a4f6147b9a09ab",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "d": true,
+        "name": "Get current lamp brightness",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "status",
+        "version": 3,
+        "x": 1040,
+        "y": 1020,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "8a76295d060fc875",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 36",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1320,
+        "y": 980,
+        "wires": []
+    },
+    {
+        "id": "4f8b482f0ba96445",
+        "type": "function",
+        "z": "b88976213c883107",
+        "name": "extract_lamp_intensity",
+        "func": "\nmsg.topic = \"lamp_brightness\";\nmsg.payload = msg.payload[0].last;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1360,
+        "y": 1040,
+        "wires": [
+            [
+                "52729afdcf61d451"
+            ]
+        ]
+    },
+    {
+        "id": "6fd4f83be487669e",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "Turn OFF",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "off",
+        "version": 3,
+        "x": 2840,
+        "y": 1060,
+        "wires": [
+            [
+                "0168377f8fe0bd83"
+            ]
+        ]
+    },
+    {
+        "id": "2d06e6ca93a4d426",
+        "type": "tapo_new_actions",
+        "z": "b88976213c883107",
+        "name": "1% Brightness",
+        "deviceIp": "xxx.xxx.x.xx",
+        "deviceAlias": "",
+        "deviceIpRange": "",
+        "searchMode": "ip",
+        "command": "brightness",
+        "version": 3,
+        "x": 2640,
+        "y": 1060,
+        "wires": [
+            [
+                "6fd4f83be487669e"
+            ]
+        ]
+    },
+    {
+        "id": "ff139560e67722a0",
+        "type": "debug",
+        "z": "b88976213c883107",
+        "name": "debug 39",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 820,
+        "y": 1320,
+        "wires": []
+    },
+    {
+        "id": "5bab7934cee513dc",
+        "type": "function",
+        "z": "b88976213c883107",
+        "d": true,
+        "name": "Check Smart System State",
+        "func": "if (global.get(\"smartSystemEnabled\") === false) {\n    msg.payload = { error: \"Smart system is disabled\" }; // Optional: Send an error message\n    return [null, msg]; // Stop the flow, pass to the second output\n} else {\n    return [msg, null]; // Continue the flow, pass to the first output\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 560,
+        "y": 1080,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3fb9031e500f6219",
+        "type": "mqtt-broker",
+        "name": "TTN server",
+        "broker": "eu1.cloud.thethings.network",
+        "port": "1883",
+        "tls": "",
+        "clientid": "node-red-mqtt-client",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "v3/thesis2024/devices/eui-a8610a31304e7b13",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "a11ff95e90f4c38c",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": "8086",
+        "protocol": "http",
+        "database": "system_data",
+        "name": "Room Power Consumption",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "1.x",
+        "url": "http://localhost:8086",
+        "timeout": "10",
+        "rejectUnauthorized": true
+    },
+    {
+        "id": "818290d3608da0ae",
+        "type": "server",
+        "name": "Home Assistant",
+        "version": 5,
+        "addon": false,
+        "rejectUnauthorizedCerts": true,
+        "ha_boolean": "y|yes|true|on|home|open",
+        "connectionDelay": true,
+        "cacheJson": true,
+        "heartbeat": false,
+        "heartbeatInterval": "30",
+        "areaSelector": "friendlyName",
+        "deviceSelector": "friendlyName",
+        "entitySelector": "friendlyName",
+        "statusSeparator": ": ",
+        "statusYear": "hidden",
+        "statusMonth": "short",
+        "statusDay": "numeric",
+        "statusHourCycle": "default",
+        "statusTimeFormat": "h:m",
+        "enableGlobalContextStore": false
+    }
+]
