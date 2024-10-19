@@ -3,7 +3,7 @@ This repository contains the source code and flow files for a smart IoT-based li
 
 
 **Technologies Used:**
-Node-RED: Used for data processing and decision-making.\n
+Node-RED: Used for data processing and decision-making.
 LoRaWAN: Communication protocol for receiving sensor data.
 InfluxDB: Time-series database for storing light intensity and power consumption data.
 Grafana: Visualization tool for displaying system performance.
