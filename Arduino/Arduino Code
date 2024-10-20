@@ -1,0 +1,107 @@
+#include <MKRWAN.h>
+#include <Wire.h>
+//#include "Seed_SI114X.h"
+#include "SI114X.h"
+
+SI114X SI1145 = SI114X();
+
+const int lightSensorPin = A0;
+String appEui = "XXXXXXXXXXX";
+String appKey = "XXXXXXXXXXXXXXX";
+String devEui = "XXXXXX";
+
+LoRaModem modem;
+
+void setup() {
+  
+  Serial.begin(9600);
+  delay(1000);
+  Serial.println("START");
+
+  if (!modem.begin(EU868)) {
+    Serial.println("Failed to start LoRa");
+    while (true) {}
+  };
+
+  if (!SI1145.Begin()) {
+    Serial.println("Grove Sunlight Sensor not found");
+    while (true) {}
+  };
+
+  // modem.setDeviceEUI(devEui);
+  Serial.print("Your module version is: ");
+  Serial.println(modem.version());
+  Serial.print("Your device EUI is: ");
+  Serial.println(modem.deviceEUI());
+
+  Serial.println("Joining Network...");
+  if (!modem.joinOTAA(appEui, appKey)) {
+    Serial.println("Failed to join network");
+     while(1);
+  }
+
+  Serial.println("Joined Network");
+  Serial.println("\r\n");
+
+}
+
+void loop() {
+  delay(30000);
+
+  // Get data from Grove Light Sensor
+  int sensorValue = analogRead(lightSensorPin);
+  int lightIntensity = map(sensorValue, 0, 1023, 0, 100);
+
+  // Get data from Grove Sunlight Sensor
+  unsigned short sunlightIntensity = SI1145.ReadVisible();
+
+  Serial.print("Light intensity: ");
+  Serial.println(lightIntensity);
+  Serial.print("Sunlight intensity: ");
+  Serial.println(sunlightIntensity);
+
+  uint8_t sunlightIntensityHighByte = highByte(sunlightIntensity);
+  uint8_t sunlightIntensityLowByte = lowByte(sunlightIntensity);
+  uint8_t payload[5];
+  payload[0] = 0x02;
+  payload[1] = lightIntensity;
+  payload[2] = 0x03;
+  payload[3] = sunlightIntensityHighByte;
+  payload[4] = sunlightIntensityLowByte;
+
+  //Serial.println(payload[0]);
+  //Serial.println(payload[1]);
+  //Serial.println(payload[2]);
+  //Serial.println(payload[3]);
+
+  int err;
+  String data = "Hello from MKR WAN 1300!";
+  modem.beginPacket();
+  //modem.print(lightIntensity);
+  modem.write(payload,5);
+  err = modem.endPacket();
+  
+  if (err > 0) {
+    Serial.println("Data sent successfully");
+    Serial.println("\r\n");
+  } else {
+    Serial.println("Failed to send data");
+    Serial.println("\r\n");
+  }
+
+
+
+  // byte payload[2];
+  //payload[0] = highByte(lightIntensity);
+  //payload[1] = lowByte(lightIntensity);
+
+  // int err = modem.send(payload, 2);
+  // if (err != 0) {
+  // Serial.print("Failed to send message. Error: ");
+  // Serial.println(err);
+  //} else {
+    //Serial.println("Message sent successfully");
+  //}
+  delay(1000);
+  
+}
