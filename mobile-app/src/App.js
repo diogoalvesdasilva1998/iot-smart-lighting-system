@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Slider from '@react-native-community/slider';
 import { View, Text, Switch,TextInput, Button, StyleSheet, Alert, Dimensions, ScrollView} from 'react-native';
 import { Svg, Circle, Text as SvgText } from 'react-native-svg';
 import { NavigationContainer } from '@react-navigation/native';
@@ -17,11 +18,14 @@ function AdminDashboard() {
   const [powerConsumption, setPowerConsumption] = useState(0);
   const [chartData, setChartData] = useState(0);
   const [smartSystemState, setSmartSystemState] = useState(false); // Initial state
+  const [message, setMessage] = useState("");
+  const [weather, setWeather] = useState(null);
+  const [brightness, setBrightness] = useState(50); // Default brightness
 
   const toggleSmartSystem = async (value) => {
 
     try {
-        const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/disable-smart-system', {
+        const response = await fetch('http://85.245.153.177:1880/disable-smart-system', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -48,36 +52,103 @@ function AdminDashboard() {
   };
 
   const fetchData = async () => {
-      const light_intensity = await fetchLightIntensity();
-      const power_consumption = await fetchPowerConsumption();
-      if (light_intensity !== null && power_consumption !== null) {
-        setLightIntensity(light_intensity); // Update the state with the fetched value
-        setPowerConsumption(power_consumption); // Update the state with the fetched value
-      }
-    };
+    const light_intensity = await fetchLightIntensity();
+    const power_consumption = await fetchPowerConsumption();
+    if (light_intensity !== null && power_consumption !== null) {
+      setLightIntensity(light_intensity); // Update the state with the fetched value
+      setPowerConsumption(power_consumption); // Update the state with the fetched value
+    }
+  };
 
-    // Fetch initial state from Node-RED or set a default value
-    const fetchInitialState = async () => {
-      // Assuming you have an endpoint to get the current state
-      // Replace with your actual endpoint to fetch the state
-      const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/get-smart-system-state');
-      if (response.ok) {
-        const data = await response.json();
-        setSmartSystemState(data.state);
-          
+  // Fetch initial state from Node-RED or set a default value
+  const fetchInitialState = async () => {
+    // Assuming you have an endpoint to get the current state
+    // Replace with your actual endpoint to fetch the state
+    const response = await fetch('http://85.245.153.177:1880/get-smart-system-state');
+    if (response.ok) {
+      const data = await response.json();
+      setSmartSystemState(data.state);
+        
+    }
+  };
+
+  // Fetch Weather Data
+  const fetchWeather = async () => {
+      const apiKey = 'de48b8b314141036ed95a2fd519f168e';
+      const city = 'Lisbon';
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+      try {
+          const response = await axios.get(url);
+          setWeather(response.data);
+      } catch (error) {
+          console.error("Error fetching weather data", error);
       }
-    };
+  };
+  
+  //Function to send manual brightness value to Node-RED
+  const handleSliderChange = (value) => {
+    setBrightness(value);
+    sendBrightnessToNodeRed(value);
+  };
+
+  const sendBrightnessToNodeRed = async (brightness) => {
+    const url = 'http://85.245.153.177:1880/brightness'; // Update this with your Node-RED endpoint
+
+    try {
+        await axios.post(url, { brightness });
+        console.log(`Brightness set to ${brightness}%`);
+    } catch (error) {
+        console.error("Error setting brightness", error);
+    }
+};
+
+const GetBrightness = async () => {
+    // Assuming you have an endpoint to get the current state
+    // Replace with your actual endpoint to fetch the state
+    const response = await fetch('http://85.245.153.177:1880/get-brightness-app');
+    if (response.ok) {
+      const data = await response.json();
+      setBrightness(data.value);
+      sendBrightnessToNodeRed(data.value);
+        
+    }
+  };
 
   useEffect(() => {
+
+
+    //const ws = new WebSocket('ws://85.245.153.177:80/ws/notifications');
 
     fetchInitialState();
     fetchData();
     loadData();
+    fetchWeather();
+    {/*GetBrightness();*/}
 
     const intervalID = setInterval(() => {
+
+
+      {/*ws.onopen = () => {
+        console.log('Connected to WebSocket');
+      };
+
+      ws.onmessage = (event) => {
+        setMessage(event.data);
+        console.log(event.data);
+      };
+
+      ws.onerror = (error) => {
+        console.log(`WebSocket error: ${error.message}`);
+      };*/}
+
+
+
       fetchInitialState(); //Refresh System State
       fetchData(); // Refresh data
       loadData();  // Refresh LineChart data
+      fetchWeather();
+      {/*GetBrightness();*/}
     }, 10000);
 
     return () => clearInterval(intervalID); // Clear interval on unmount
@@ -109,6 +180,37 @@ function AdminDashboard() {
               thumbColor={smartSystemState ? "#f5dd4b" : "#f4f3f4"}
               trackColor={{ false: "#767577", true: "#81b0ff" }}
             />
+          </View>
+
+        <View style={styles.switchContainer}>
+          <Text style={{marginTop: 40}}>Set Light Brightness: {Math.round(brightness)}%</Text>
+          <Slider
+              style={{ width: 200, height: 40 }}
+              minimumValue={0}
+              maximumValue={100}
+              step={1}
+              value={brightness}
+              onSlidingComplete={handleSliderChange}
+          />
+        </View>
+
+
+
+
+
+
+          {/*Weather Data*/}
+          <View style={styles.container}>
+          {weather ? (
+            <View>
+                <Text style={styles.title,{ fontSize: 15, marginTop: 40, marginBottom: 10, textAlign: 'left'}}>Weather in {weather.name}:</Text>
+                <Text style={styles.titleTight}>  Temperature: {weather.main.temp} °C</Text>
+                <Text style={styles.titleTight}>  Cloudiness: {weather.clouds.all}%</Text>
+                <Text style={styles.titleTight}>  Condition: {weather.weather[0].description}</Text>
+            </View>
+          ) : (
+            <Text>Loading weather data...</Text>
+          )}
           </View>
 
           <View style={styles.container}>
@@ -189,7 +291,7 @@ function UserDashboard() {
   const toggleSmartSystem = async (value) => {
 
     try {
-        const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/disable-smart-system', {
+        const response = await fetch('http://85.245.153.177:1880/disable-smart-system', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -228,7 +330,7 @@ function UserDashboard() {
     const fetchInitialState = async () => {
       // Assuming you have an endpoint to get the current state
       // Replace with your actual endpoint to fetch the state
-      const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/get-smart-system-state');
+      const response = await fetch('http://85.245.153.177:1880/get-smart-system-state');
       if (response.ok) {
         const data = await response.json();
         setSmartSystemState(data.state);
@@ -383,7 +485,7 @@ const Stack = createStackNavigator();
 // Function to fetch last light intensity data from Node-RED/InfluxDB API
 const fetchLightIntensity = async () => {
   try {
-    const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/get-light-intensity'); // Node-RED endpoint
+    const response = await fetch('http://85.245.153.177:1880/get-light-intensity'); // Node-RED endpoint
     const data = await response.json();
     return data[0].light_intensity; // Accessing the light intensity
   } catch (error) {
@@ -395,7 +497,7 @@ const fetchLightIntensity = async () => {
 // Function to fetch last power consumption data from Node-RED/InfluxDB API
 const fetchPowerConsumption = async () => {
   try {
-    const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/get-power-consumption'); // Node-RED endpoint
+    const response = await fetch('http://85.245.153.177:1880/get-power-consumption'); // Node-RED endpoint
     const data = await response.json();
     return data[0].power_consumption; // Accessing the light intensity
   } catch (error) {
@@ -407,7 +509,7 @@ const fetchPowerConsumption = async () => {
 // Function to fetch light intensity and power consumption data over time from Node-RED/InfluxDB API
 const fetchHistoricalData = async () => {
     try {
-        const response = await fetch('http://xxx.xxx.xxx.xxx:xxx/get-light-power-data');
+        const response = await fetch('http://85.245.153.177:1880/get-light-power-data');
         const data = await response.json();
         return data; // Assume it returns an array of lightIntensity and lampPercentage over time
     } catch (error) {
@@ -587,5 +689,10 @@ const styles = StyleSheet.create({
   gaugeContainer: {
     flex: 1,
     alignItems: 'center',
+  },
+  titleTight: {
+    fontSize: 12,
+    lineHeight: 0,
+    marginBottom: 0,
   },
 });
