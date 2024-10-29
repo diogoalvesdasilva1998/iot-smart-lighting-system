@@ -74,7 +74,7 @@ function AdminDashboard() {
 
   // Fetch Weather Data
   const fetchWeather = async () => {
-      const apiKey = 'de48b8b314141036ed95a2fd519f168e';
+      const apiKey = 'xxxxxxxxxxxxxxxxxxxx';
       const city = 'Lisbon';
       const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
 
